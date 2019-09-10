@@ -1,0 +1,8 @@
+[package]
+name = "nes_emulator"
+version = "0.1.0"
+authors = ["deevtanc <devtanc@gmail.com>"]
+
+[[bin]]
+name = "nes_emulator"
+path = "main.rs"
