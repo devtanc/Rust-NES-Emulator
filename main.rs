@@ -1,5 +1,6 @@
 mod bus;
 mod connection;
+mod cpu;
 mod device;
 
 use bus::Bus;
