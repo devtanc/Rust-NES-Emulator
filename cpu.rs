@@ -18,7 +18,7 @@ impl<'a, T: ExactSize + Readable + Writable> Cpu<'a, T> {
       x: 0x00,
       y: 0x00,
       stkp: 0x00,
-      pc: 0x0000,
+      pc: 0xFFFC,
       status: 0x00,
       bus,
     }
