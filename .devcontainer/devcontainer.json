@@ -24,6 +24,7 @@
   "extensions": [
     "rust-lang.rust",
     "bungcip.better-toml",
-    "vadimcn.vscode-lldb"
+    "vadimcn.vscode-lldb",
+    "zehfernando.vscode-dasm",
   ]
 }
