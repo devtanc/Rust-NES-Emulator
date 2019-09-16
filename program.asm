@@ -1,4 +1,6 @@
  PROCESSOR 6502
-
- SEI
+ 
+ ORG $600
+reset
  JMP $FFFC
+ LDA $FF
