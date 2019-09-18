@@ -1,4 +1,4 @@
-use data_flow::ReadWrite;
+use data_flow::{ReadWrite, ReadRange};
 
 const MAX_MEMORY: usize = 64 * 1024; // 64 KB
 
@@ -27,5 +27,13 @@ impl ReadWrite for Bus {
     match addr {
       0x0000..=0xFFFF => self.ram[addr as usize],
     }
+  }
+}
+
+impl ReadRange for Bus {
+  fn read_range(&self, addr_start: u16, addr_end: u16) -> &[u8] {
+    let start = addr_start as usize;
+    let end = addr_end as usize;
+    &self.ram[start..end]
   }
 }
