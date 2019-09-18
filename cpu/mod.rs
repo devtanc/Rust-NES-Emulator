@@ -153,9 +153,33 @@ impl Cpu {
     self.cycles = 8;
   }
   // Interrupt: request
-  pub fn irq(&self) {}
+  pub fn irq(&mut self) {
+    if !self.get_flag('I') {
+      self.stack_push(((self.pc >> 8) & 0x00FF) as u8);
+      self.stack_push((self.pc & 0x00FF) as u8);
+
+      self.set_flag('B', 0);
+      self.set_flag('U', 1);
+      self.set_flag('I', 1);
+      self.stack_push(self.status);
+      self.pc = self.read_addr_from(BRK_ADDR_BEGIN);
+
+      self.cycles = 7;
+    }
+  }
   // Interrupt: non-maskable
-  pub fn nmi(&self) {}
+  pub fn nmi(&mut self) {
+    self.stack_push(((self.pc >> 8) & 0x00FF) as u8);
+    self.stack_push((self.pc & 0x00FF) as u8);
+
+    self.set_flag('B', 0);
+    self.set_flag('U', 1);
+    self.set_flag('I', 1);
+    self.stack_push(self.status);
+    self.pc = self.read_addr_from(BRK_ADDR_BEGIN);
+
+    self.cycles = 8;
+  }
   // Perform one clock cycle
   pub fn clock(&mut self) {
     if self.cycles == 0 {
