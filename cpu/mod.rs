@@ -98,38 +98,6 @@ impl Cpu {
     }
   }
 
-  pub fn get_acc(&self) -> &u8 {
-    &self.acc
-  }
-  pub fn get_x(&self) -> &u8 {
-    &self.x
-  }
-  pub fn get_y(&self) -> &u8 {
-    &self.y
-  }
-  pub fn get_stkp(&self) -> &u8 {
-    &self.stkp
-  }
-  pub fn get_pc(&self) -> &u16 {
-    &self.pc
-  }
-
-  pub fn set_acc(&mut self, val: u8) {
-    self.acc = val;
-  }
-  pub fn set_x(&mut self, val: u8) {
-    self.x = val;
-  }
-  pub fn set_y(&mut self, val: u8) {
-    self.y = val;
-  }
-  pub fn set_stkp(&mut self, val: u8) {
-    self.stkp = val;
-  }
-  pub fn set_pc(&mut self, val: u16) {
-    self.pc = val;
-  }
-
   // Interrupt: reset
   // Reset all internal values to defaults
   pub fn reset(&mut self) {
