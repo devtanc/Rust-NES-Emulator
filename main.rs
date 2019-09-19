@@ -51,6 +51,12 @@ fn main() -> Result<(), failure::Error> {
         Key::Char(' ') => {
           cpu.step();
         }
+        Key::Right => {
+          cpu.clock();
+        }
+        Key::Char('r') => {
+          cpu.reset();
+        }
         Key::Char('q') => {
           break;
         }
