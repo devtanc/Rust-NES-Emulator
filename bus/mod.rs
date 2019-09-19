@@ -1,4 +1,4 @@
-use data_flow::{ReadWrite, ReadRange};
+use data_flow::{ReadWrite, ReadRange, HexSlice};
 
 const MAX_MEMORY: usize = 64 * 1024; // 64 KB
 
@@ -31,9 +31,9 @@ impl ReadWrite for Bus {
 }
 
 impl ReadRange for Bus {
-  fn read_range(&self, addr_start: u16, addr_end: u16) -> &[u8] {
+  fn read_range(&self, addr_start: u16, addr_end: u16) -> HexSlice {
     let start = addr_start as usize;
     let end = addr_end as usize;
-    &self.ram[start..end]
+    HexSlice::new(&self.ram[start..end])
   }
 }

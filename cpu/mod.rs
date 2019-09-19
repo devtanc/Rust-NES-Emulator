@@ -24,7 +24,7 @@ fn flag_from_char(flag: char) -> u8 {
   }
 }
 
-struct Cpu {
+pub struct Cpu {
   bus: Bus, // Connected BUS
   // 6502 registers
   acc: u8,    // Accumulator
@@ -37,8 +37,7 @@ struct Cpu {
   current_tick: usize, // Current clock tick count
   cycles: u8,          // Cycles remaining for current instruction
   opcode: u8,          // Current instruction byte
-  addr_abs: u16,       // Any absolute address value
-  addr_rel: u16,       // Absolute address, but used when following a branch
+  addr_of_data: u16,   // Any absolute address value
 }
 
 impl Cpu {
@@ -49,15 +48,14 @@ impl Cpu {
       acc: 0x00,
       x: 0x00,
       y: 0x00,
-      stkp: 0x00,
+      stkp: 0xFD,
       pc: 0xFFFC,
       status: 0x00,
 
       current_tick: 0,
       cycles: 0x00,
       opcode: 0x00,
-      addr_abs: 0x0000,
-      addr_rel: 0x0000,
+      addr_of_data: 0x0000,
     }
   }
 
@@ -68,34 +66,58 @@ impl Cpu {
       acc: 0x00,
       x: 0x00,
       y: 0x00,
-      stkp: 0x00,
+      stkp: 0xFD,
       pc: 0xFFFC,
       status: 0x00,
 
       current_tick: 0,
       cycles: 0x00,
       opcode: 0x00,
-      addr_abs: 0x0000,
-      addr_rel: 0x0000,
+      addr_of_data: 0x0000,
     }
   }
+  pub fn get_bus_ref(&self) -> &Bus {
+    &self.bus
+  }
 
-  pub fn new_with_values(acc: u8, x: u8, y: u8, stkp: u8, pc: u16, status: u8, bus: Bus) -> Cpu {
-    Cpu {
-      bus,
+  pub fn get_mut_bus_ref(&mut self) -> &mut Bus {
+    &mut self.bus
+  }
 
-      acc,
-      x,
-      y,
-      stkp,
-      pc,
-      status,
-      current_tick: 0,
-      cycles: 0x00,
-      opcode: 0x00,
-      addr_abs: 0x0000,
-      addr_rel: 0x0000,
-    }
+  pub fn get_acc(&self) -> &u8 {
+    &self.acc
+  }
+
+  pub fn get_x(&self) -> &u8 {
+    &self.x
+  }
+
+  pub fn get_y(&self) -> &u8 {
+    &self.y
+  }
+
+  pub fn get_stkp(&self) -> &u8 {
+    &self.stkp
+  }
+
+  pub fn get_pc(&self) -> &u16 {
+    &self.pc
+  }
+
+  pub fn get_current_tick(&self) -> &usize {
+    &self.current_tick
+  }
+
+  pub fn get_cycles(&self) -> &u8 {
+    &self.cycles
+  }
+
+  pub fn get_opcode(&self) -> &u8 {
+    &self.opcode
+  }
+
+  pub fn get_addr_of_data(&self) -> &u16 {
+    &self.addr_of_data
   }
 
   // Interrupt: reset
@@ -103,6 +125,7 @@ impl Cpu {
   pub fn reset(&mut self) {
     let hi = self.read_addr(RESET_ADDRESS + 0) as u16;
     let lo = self.read_addr(RESET_ADDRESS + 1) as u16;
+    println!("{}{}", hi, lo);
 
     self.pc = (hi << 8) | lo;
 
@@ -115,8 +138,7 @@ impl Cpu {
       false => 0b00000000,
     };
 
-    self.addr_abs = 0x0000;
-    self.addr_rel = 0x0000;
+    self.addr_of_data = 0x0000;
 
     self.cycles = 8;
   }
@@ -150,7 +172,7 @@ impl Cpu {
   }
   // Perform one clock cycle
   pub fn clock(&mut self) {
-    if self.cycles == 0 {
+    if self.is_cycle_complete() {
       // Read the program counter
       self.opcode = self.read_pc_addr();
       // Always set the unused flag to 1
@@ -163,6 +185,7 @@ impl Cpu {
 
       // Get pointer to the data that will be used in the operation
       let data_ptr = self.get_data_ptr(instruction.get_address_mode());
+      self.addr_of_data = data_ptr;
 
       // Perform the operation
       self.perform_operation(
@@ -502,7 +525,10 @@ impl Cpu {
         offset_addr
       }
       AddressMode::Accumulator => self.acc as u16,
-      AddressMode::Immediate => self.pc + 1,
+      AddressMode::Immediate => {
+        self.pc += 1;
+        self.pc
+      },
       AddressMode::Implied => self.acc as u16, // TODO: is this right?
       AddressMode::IndirectX => {
         let offset = self.read_pc_addr();
@@ -557,12 +583,7 @@ impl Cpu {
     self.bus = bus;
   }
 
-  // TODO: Why not just use read_addr for this?
-  fn fetch_from_addr(&self, addr: u16) -> u8 {
-    self.read_addr(addr)
-  }
-
-  fn get_flag(&self, flag: char) -> bool {
+  pub fn get_flag(&self, flag: char) -> bool {
     let flag_val = flag_from_char(flag);
 
     match flag_val {
