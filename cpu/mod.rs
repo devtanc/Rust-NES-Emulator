@@ -234,17 +234,17 @@ impl Cpu {
       }
       Operation::BCC => {
         if !self.get_flag('C') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BCS => {
         if self.get_flag('C') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BEQ => {
         if self.get_flag('Z') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BIT => {
@@ -255,17 +255,17 @@ impl Cpu {
       }
       Operation::BMI => {
         if self.get_flag('N') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BNE => {
         if !self.get_flag('Z') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BPL => {
         if !self.get_flag('N') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BRK => {
@@ -287,12 +287,12 @@ impl Cpu {
       }
       Operation::BVC => {
         if !self.get_flag('V') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::BVS => {
         if self.get_flag('V') {
-          self.branch(data as u16);
+          self.branch(ptr as i16);
         }
       }
       Operation::CLC => self.set_flag('C', 0),
@@ -470,6 +470,10 @@ impl Cpu {
       Operation::TYA => self.acc = self.y,
       Operation::XXX => (),
     }
+    match address_mode {
+      AddressMode::Immediate => self.pc += 1,
+      _ => (),
+    };
   }
 
   fn stack_push(&mut self, data: u8) {
@@ -482,9 +486,9 @@ impl Cpu {
     self.read_addr(STACK_BASE_ADDR + (self.stkp as u16))
   }
 
-  fn branch(&mut self, data: u16) {
+  fn branch(&mut self, data: i16) {
     self.cycles += 1;
-    let destination = self.pc + data;
+    let destination = self.pc.wrapping_add(data as u16);
     if destination & 0xFF00 != self.pc & 0xFF00 {
       self.cycles += 1
     }
@@ -532,10 +536,7 @@ impl Cpu {
         offset_addr
       }
       AddressMode::Accumulator => self.acc as u16,
-      AddressMode::Immediate => {
-        self.pc += 1;
-        self.pc
-      }
+      AddressMode::Immediate => self.pc,
       AddressMode::Implied => self.acc as u16, // TODO: is this right?
       AddressMode::IndirectX => {
         let offset = self.read_pc_addr();
