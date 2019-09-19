@@ -199,6 +199,13 @@ impl Cpu {
     }
   }
 
+  pub fn step(&mut self) {
+    while !self.is_cycle_complete() {
+      self.clock()
+    }
+    self.clock()
+  }
+
   fn perform_operation(&mut self, ptr: u16, operation: &Operation, address_mode: &AddressMode) {
     let data: u8 = self.read_addr(ptr);
 
@@ -528,7 +535,7 @@ impl Cpu {
       AddressMode::Immediate => {
         self.pc += 1;
         self.pc
-      },
+      }
       AddressMode::Implied => self.acc as u16, // TODO: is this right?
       AddressMode::IndirectX => {
         let offset = self.read_pc_addr();

@@ -4,16 +4,19 @@ extern crate tui;
 mod bus;
 mod cpu;
 mod data_flow;
+mod event;
 
 use bus::Bus;
 use cpu::Cpu;
+use data_flow::{HexByte, MemoryAddress, ReadRange, ReadWrite};
+use event::{Config, Event, Events};
 
-use std::thread;
+use std::io;
 use std::time::Duration;
 
-use data_flow::{HexByte, MemoryAddress, ReadRange, ReadWrite};
-use std::io;
+use termion::event::Key;
 use termion::raw::IntoRawMode;
+
 use tui::backend::{Backend, TermionBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
@@ -22,8 +25,13 @@ use tui::{Frame, Terminal};
 
 const PROGRAM_START_ADDR: u16 = 0x8000;
 const ZERO_PAGE_START: u16 = 0x0000;
+const DEFAULT_TICK_RATE: u64 = 200;
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), failure::Error> {
+  let events = Events::with_config(Config {
+    tick_rate: Duration::from_millis(DEFAULT_TICK_RATE),
+    ..Config::default()
+  });
   let stdout = io::stdout().into_raw_mode()?;
   let backend = TermionBackend::new(stdout);
   let mut terminal = Terminal::new(backend)?;
@@ -37,14 +45,24 @@ fn main() -> Result<(), io::Error> {
   println!("{}", termion::clear::All);
 
   loop {
-    if *cpu.get_current_tick() > 150 {
-      break;
-    }
     draw_ui(&mut terminal, &mut cpu)?;
-    cpu.clock();
-    thread::sleep(Duration::from_millis(250));
+    match events.next()? {
+      Event::Input(key) => match key {
+        Key::Char(' ') => {
+          cpu.step();
+        }
+        Key::Char('q') => {
+          break;
+        }
+        _ => {}
+      },
+      Event::Tick => {
+        () // Do something here if you need to in between clocks
+      }
+    }
   }
 
+  println!("{}", termion::clear::All);
   Ok(())
 }
 
