@@ -213,7 +213,7 @@ where
       format!("${}:   ", root_addr),
       Style::default().modifier(Modifier::BOLD),
     ));
-    text.push(Text::raw(format!("{}", bus.read_range(i, i + 15))));
+    text.push(Text::raw(format!("{}", bus.read_range(i, i + 16))));
     text.push(Text::raw("\n"));
   }
 
