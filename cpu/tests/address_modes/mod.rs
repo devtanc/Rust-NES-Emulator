@@ -253,22 +253,13 @@ mod relative {
     assert_eq!(cpu.pc, ROOT + 1);
   }
   #[test]
-  fn ptr_should_be_sum_of_data_at_pc_addr_and_pc() {
+  fn ptr_should_be_offset() {
     const OFFSET: u8 = 0x0C;
     let mut cpu = Cpu::new();
     cpu.pc = ROOT;
     cpu.write_addr(ROOT, OFFSET);
     let ptr = cpu.get_data_ptr(ADDR_MODE);
-    assert_eq!(ptr, cpu.pc + (OFFSET as u16));
-  }
-  #[test]
-  fn ptr_should_wrap_on_overflow() {
-    const OFFSET: u8 = 0x0C;
-    let mut cpu = Cpu::new();
-    cpu.pc = 0xFFFD;
-    cpu.write_addr(0xFFFD, OFFSET);
-    let ptr = cpu.get_data_ptr(ADDR_MODE);
-    assert_eq!(ptr, 0x000A);
+    assert_eq!(ptr, OFFSET as u16);
   }
 }
 

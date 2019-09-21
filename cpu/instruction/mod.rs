@@ -164,21 +164,6 @@ impl fmt::Display for AddressMode {
   }
 }
 
-/*
-*   *   16-bit address words are little endian, lo(w)-byte first, followed by the hi(gh)-byte.
-*     (An assembler will use a human readable, big-endian notation as in $HHLL.)
-*
-*   **  The available 16-bit address space is conceived as consisting of pages of 256 bytes each, with
-*     address hi-bytes represententing the page index. An increment with carry may affect the hi-byte
-*     and may thus result in a crossing of page boundaries, adding an extra cycle to the execution.
-*     Increments without carry do not affect the hi-byte of an address and no page transitions do occur.
-*     Generally, increments of 16-bit addresses include a carry, increments of zeropage addresses don't.
-*     Notably this is not related in any way to the state of the carry bit of the accumulator.
-*
-*   *** Branch offsets are signed 8-bit values, -128 ... +127, negative offsets in two's complement.
-*     Page transitions may occur and add an extra cycle to the exucution.
-*/
-
 pub struct Instruction {
   operation: Operation,
   address_mode: AddressMode,

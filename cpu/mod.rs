@@ -501,9 +501,9 @@ impl Cpu {
     (hi << 8) | lo
   }
 
-  fn branch(&mut self, data: i16) {
+  fn branch(&mut self, offset: i16) {
     self.cycles += 1;
-    let destination = self.pc.wrapping_add(data as u16);
+    let destination = self.pc.wrapping_add(offset as u16);
     if destination & 0xFF00 != self.pc & 0xFF00 {
       self.cycles += 1
     }
@@ -534,6 +534,7 @@ impl Cpu {
         let offset_addr = addr.wrapping_add(self.x as u16);
 
         if (offset_addr & HI_BYTE_MASK) != (addr & HI_BYTE_MASK) {
+          // TODO: Need tests for cycle increment
           self.cycles += 1; // TODO: Is this the right way to do this? Or is it dependant on how the operation is executed
         }
         offset_addr
@@ -567,16 +568,17 @@ impl Cpu {
         let addr = (hi << 8) | lo;
         addr.wrapping_add(self.y as u16)
         // TODO: How to figure out clock cycles for crossing pages here
+        // TODO: Need tests for cycle increment once written
       }
       AddressMode::Relative => {
         let offset = self.read_pc_addr() as u16;
 
         if offset & 0x80 > 0 {
-          // If offset is negative, make it a 16 bit starting with 0xFF..
-          self.pc.wrapping_add(offset | 0xFF00)
+          // If offset is negative, make it start 0xFF for binary addition to work
+          offset | 0xFF00
         } else {
           // If offset is positive
-          self.pc.wrapping_add(offset)
+          offset
         }
       }
       AddressMode::ZeroPage => self.read_pc_addr() as u16,
