@@ -264,7 +264,7 @@ impl Cpu {
         self.set_flag('I', 1);
         self.set_flag('B', 1);
         // Increment pc (so RTI executes correctly)
-        self.pc += 1;
+        self.pc = self.pc.wrapping_add(1);
         // Store incremented PC address bytes on stack
         let pc_hi = (self.pc & 0xFF00) >> 8;
         let pc_lo = self.pc & 0x00FF;
@@ -445,7 +445,7 @@ impl Cpu {
       }
       Operation::RTS => {
         self.pc = self.pop_address_from_stack();
-        self.pc += 1;
+        self.pc = self.pc.wrapping_add(1);
       }
       Operation::SBC => {
         let inverted_data = (data as u16) ^ 0x00FF;
@@ -474,7 +474,9 @@ impl Cpu {
       Operation::XXX => (),
     }
     match address_mode {
-      AddressMode::Immediate => self.pc += 1,
+      AddressMode::Immediate => {
+        self.pc = self.pc.wrapping_add(1);
+      }
       _ => (),
     };
   }
@@ -516,23 +518,20 @@ impl Cpu {
         // containing lo byte, then hi byte of pointer to data
         let ptr = self.get_byte_at_pc();
 
-        // Read lo and hi bytes at ptr location for final addr
-        let lo_pc_addr = self.read_addr(ptr) as u16;
-        let hi_pc_addr: u16;
-
         // SIMULATE PAGE BOUNDARY HARDWARE BUG
-        if ptr & LO_BYTE_MASK == 0xFF {
-          hi_pc_addr = self.read_addr(ptr & 0xFF00) as u16;
+        if (ptr & 0x00FF) == 0xFF {
+          let lo_pc_addr = self.read_addr(ptr) as u16;
+          let hi_pc_addr = self.read_addr(ptr & 0xFF00) as u16;
+          (hi_pc_addr << 8) | lo_pc_addr
         } else {
-          hi_pc_addr = self.read_addr(ptr + 1) as u16;
+          let lo_pc_addr = self.read_addr(ptr) as u16;
+          let hi_pc_addr = self.read_addr(ptr + 1) as u16;
+          (hi_pc_addr << 8) | lo_pc_addr
         }
-
-        // Return final, "dereferenced" addr
-        (hi_pc_addr << 8) | lo_pc_addr
       }
       AddressMode::AbsoluteX => {
         let addr = self.get_byte_at_pc();
-        let offset_addr = addr + (self.x as u16);
+        let offset_addr = addr.wrapping_add(self.x as u16);
 
         if (offset_addr & HI_BYTE_MASK) != (addr & HI_BYTE_MASK) {
           self.cycles += 1; // TODO: Is this the right way to do this? Or is it dependant on how the operation is executed
@@ -541,60 +540,48 @@ impl Cpu {
       }
       AddressMode::AbsoluteY => {
         let addr = self.get_byte_at_pc();
-        let offset_addr = addr + (self.y as u16);
+        let offset_addr = addr.wrapping_add(self.y as u16);
 
         if (offset_addr & HI_BYTE_MASK) != (addr & HI_BYTE_MASK) {
           self.cycles += 1;
         }
         offset_addr
       }
-      AddressMode::Accumulator => self.acc as u16,
+      // If the address mode is accumulator, it doesn't need an address
+      AddressMode::Accumulator => 0x0000,
       AddressMode::Immediate => self.pc,
       // If the address mode is implied, it doesn't need an address
       AddressMode::Implied => 0x0000,
       AddressMode::IndirectX => {
         let offset = self.read_pc_addr();
-        let zero_ptr = (self.x + offset) as u16;
+        let zero_ptr = self.x.wrapping_add(offset);
 
-        self.read_addr_from(zero_ptr)
+        let lo = self.read_addr(zero_ptr as u16) as u16;
+        let hi = self.read_addr(zero_ptr.wrapping_add(1) as u16) as u16;
+        (hi << 8) | lo
       }
-      // TODO: This is what I interpreted the spec to be
-      // AddressMode::IndirectY => {
-      //   let zero_ptr = self.read_pc_addr() as u16;
-      //   let contents_from_zero_page = self.read_addr(zero_ptr) as u16;
-
-      //   let sum_with_carry = (self.y as u16) + contents_from_zero_page; // Cast to u16 to preserve carry
-      //   let carry = (sum_with_carry & HI_BYTE_MASK) >> 8;
-
-      //   let lo = sum_with_carry & LO_BYTE_MASK;
-      //   let hi = (self.read_addr(zero_ptr + 1) as u16) + carry;
-
-      //   (hi << 8) | lo
-      // }
-      // TODO: This is what javidx9 interpreted the spec to be
       AddressMode::IndirectY => {
-        let ptr = self.get_byte_at_pc();
-        let addr = ptr + (self.y as u16);
-        if (addr & HI_BYTE_MASK) != (ptr & HI_BYTE_MASK) {
-          self.cycles += 1
-        }
-
-        addr
+        let zero_ptr = self.read_pc_addr();
+        let lo = self.read_addr(zero_ptr as u16) as u16;
+        let hi = self.read_addr(zero_ptr.wrapping_add(1) as u16) as u16;
+        let addr = (hi << 8) | lo;
+        addr.wrapping_add(self.y as u16)
+        // TODO: How to figure out clock cycles for crossing pages here
       }
       AddressMode::Relative => {
         let offset = self.read_pc_addr() as u16;
 
         if offset & 0x80 > 0 {
           // If offset is negative, make it a 16 bit starting with 0xFF..
-          offset | 0xFF00
+          self.pc.wrapping_add(offset | 0xFF00)
         } else {
           // If offset is positive
-          offset
+          self.pc.wrapping_add(offset)
         }
       }
       AddressMode::ZeroPage => self.read_pc_addr() as u16,
-      AddressMode::ZeroPageX => (self.read_pc_addr() + self.x) as u16,
-      AddressMode::ZeroPageY => (self.read_pc_addr() + self.y) as u16,
+      AddressMode::ZeroPageX => self.x.wrapping_add(self.read_pc_addr()) as u16,
+      AddressMode::ZeroPageY => self.y.wrapping_add(self.read_pc_addr()) as u16,
       AddressMode::XXX => 0x0000,
     }
   }
@@ -662,7 +649,7 @@ impl Cpu {
 
   fn read_addr_from(&self, addr: u16) -> u16 {
     let lo = self.read_addr(addr) as u16;
-    let hi = self.read_addr(addr + 1) as u16;
+    let hi = self.read_addr(addr.wrapping_add(1)) as u16;
     (hi << 8) | lo
   }
 }
