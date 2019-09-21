@@ -90,5 +90,5 @@ pub trait ReadWrite {
 }
 
 pub trait ReadRange {
-  fn read_range(&self, addr_start: u16, addr_end: u16) -> HexSlice;
+  fn read_range(&self, addr_start: u16, addr_end: u16) -> &[u8];
 }

@@ -1,5 +1,7 @@
 // Source: https://www.masswerk.at/6502/6502_instruction_set.html
 
+use std::fmt;
+
 pub enum Operation {
   ADC, //  add with carry
   AND, //  and (with accumulator)
@@ -60,6 +62,70 @@ pub enum Operation {
   XXX, //  invalid operation
 }
 
+impl fmt::Display for Operation {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match *self {
+      Operation::ADC => write!(f, "ADC"),
+      Operation::AND => write!(f, "AND"),
+      Operation::ASL => write!(f, "ASL"),
+      Operation::BCC => write!(f, "BCC"),
+      Operation::BCS => write!(f, "BCS"),
+      Operation::BEQ => write!(f, "BEQ"),
+      Operation::BIT => write!(f, "BIT"),
+      Operation::BMI => write!(f, "BMI"),
+      Operation::BNE => write!(f, "BNE"),
+      Operation::BPL => write!(f, "BPL"),
+      Operation::BRK => write!(f, "BRK"),
+      Operation::BVC => write!(f, "BVC"),
+      Operation::BVS => write!(f, "BVS"),
+      Operation::CLC => write!(f, "CLC"),
+      Operation::CLD => write!(f, "CLD"),
+      Operation::CLI => write!(f, "CLI"),
+      Operation::CLV => write!(f, "CLV"),
+      Operation::CMP => write!(f, "CMP"),
+      Operation::CPX => write!(f, "CPX"),
+      Operation::CPY => write!(f, "CPY"),
+      Operation::DEC => write!(f, "DEC"),
+      Operation::DEX => write!(f, "DEX"),
+      Operation::DEY => write!(f, "DEY"),
+      Operation::EOR => write!(f, "EOR"),
+      Operation::INC => write!(f, "INC"),
+      Operation::INX => write!(f, "INX"),
+      Operation::INY => write!(f, "INY"),
+      Operation::JMP => write!(f, "JMP"),
+      Operation::JSR => write!(f, "JSR"),
+      Operation::LDA => write!(f, "LDA"),
+      Operation::LDX => write!(f, "LDX"),
+      Operation::LDY => write!(f, "LDY"),
+      Operation::LSR => write!(f, "LSR"),
+      Operation::NOP => write!(f, "NOP"),
+      Operation::ORA => write!(f, "ORA"),
+      Operation::PHA => write!(f, "PHA"),
+      Operation::PHP => write!(f, "PHP"),
+      Operation::PLA => write!(f, "PLA"),
+      Operation::PLP => write!(f, "PLP"),
+      Operation::ROL => write!(f, "ROL"),
+      Operation::ROR => write!(f, "ROR"),
+      Operation::RTI => write!(f, "RTI"),
+      Operation::RTS => write!(f, "RTS"),
+      Operation::SBC => write!(f, "SBC"),
+      Operation::SEC => write!(f, "SEC"),
+      Operation::SED => write!(f, "SED"),
+      Operation::SEI => write!(f, "SEI"),
+      Operation::STA => write!(f, "STA"),
+      Operation::STX => write!(f, "STX"),
+      Operation::STY => write!(f, "STY"),
+      Operation::TAX => write!(f, "TAX"),
+      Operation::TAY => write!(f, "TAY"),
+      Operation::TSX => write!(f, "TSX"),
+      Operation::TXA => write!(f, "TXA"),
+      Operation::TXS => write!(f, "TXS"),
+      Operation::TYA => write!(f, "TYA"),
+      Operation::XXX => write!(f, "XXX"),
+    }
+  }
+}
+
 pub enum AddressMode {
   Accumulator,      // OPC A	 	    operand is AC (implied single byte instruction)
   Immediate,        // OPC $LLHH	 	operand is address $HHLL *
@@ -75,6 +141,27 @@ pub enum AddressMode {
   IndirectY, // OPC $LL,X	 	operand is zeropage address; effective address is address incremented by X without carry **
   AbsoluteIndirect, // OPC $LL,Y	 	operand is zeropage address; effective address is address incremented by Y without carry **
   XXX,              // Address mode for invalid operation
+}
+
+impl fmt::Display for AddressMode {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match *self {
+      AddressMode::Accumulator => write!(f, "ACC"),
+      AddressMode::Immediate => write!(f, "IMM"),
+      AddressMode::Absolute => write!(f, "ABS"),
+      AddressMode::ZeroPage => write!(f, "ZP0"),
+      AddressMode::ZeroPageX => write!(f, "ZPX"),
+      AddressMode::ZeroPageY => write!(f, "ZPY"),
+      AddressMode::AbsoluteX => write!(f, "ABX"),
+      AddressMode::AbsoluteY => write!(f, "ABY"),
+      AddressMode::Implied => write!(f, "IMP"),
+      AddressMode::Relative => write!(f, "REL"),
+      AddressMode::IndirectX => write!(f, "INX"),
+      AddressMode::IndirectY => write!(f, "INY"),
+      AddressMode::AbsoluteIndirect => write!(f, "ABI"),
+      AddressMode::XXX => write!(f, "XXX"),
+    }
+  }
 }
 
 /*
@@ -138,7 +225,6 @@ impl Instruction {
   pub fn get_cycles(&self) -> u8 {
     self.cycles
   }
-
 }
 
 pub fn get_instruction(opcode: u8) -> Instruction {

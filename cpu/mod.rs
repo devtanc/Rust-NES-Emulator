@@ -1,14 +1,16 @@
 pub mod instruction;
+mod tests;
 
 use bus::Bus;
 use cpu::instruction::{get_instruction, AddressMode, Operation};
 use data_flow::ReadWrite;
 
+const STACK_BASE_ADDR: u16 = 0x0100;
 const RESET_ADDRESS: u16 = 0xFFFC;
 const LO_BYTE_MASK: u16 = 0x00FF;
 const HI_BYTE_MASK: u16 = 0xFF00;
-const STACK_BASE_ADDR: u16 = 0x0100;
 const BRK_ADDR_BEGIN: u16 = 0xFFFE;
+const NMI_ADDR_BEGIN: u16 = 0xFFFA;
 
 fn flag_from_char(flag: char) -> u8 {
   match flag {
@@ -16,7 +18,7 @@ fn flag_from_char(flag: char) -> u8 {
     'Z' => 2, // Z	Zero
     'I' => 3, // I	Interrupt (IRQ disable)
     'D' => 4, // D	Decimal (use BCD for arithmetics)
-    'B' => 5, // B	Break
+    'B' => 5, // B	B-Flag
     'U' => 6, // -	ignored
     'V' => 7, // V	Overflow
     'N' => 8, // N	Negative
@@ -38,6 +40,7 @@ pub struct Cpu {
   cycles: u8,          // Cycles remaining for current instruction
   opcode: u8,          // Current instruction byte
   addr_of_data: u16,   // Any absolute address value
+  ppc: u16,            // Beginning of instruction pc value
 }
 
 impl Cpu {
@@ -56,28 +59,8 @@ impl Cpu {
       cycles: 0x00,
       opcode: 0x00,
       addr_of_data: 0x0000,
+      ppc: 0xFFFC,
     }
-  }
-
-  pub fn new_with_bus(bus: Bus) -> Cpu {
-    Cpu {
-      bus,
-
-      acc: 0x00,
-      x: 0x00,
-      y: 0x00,
-      stkp: 0xFD,
-      pc: 0xFFFC,
-      status: 0x00,
-
-      current_tick: 0,
-      cycles: 0x00,
-      opcode: 0x00,
-      addr_of_data: 0x0000,
-    }
-  }
-  pub fn get_bus_ref(&self) -> &Bus {
-    &self.bus
   }
 
   pub fn get_mut_bus_ref(&mut self) -> &mut Bus {
@@ -120,14 +103,19 @@ impl Cpu {
     &self.addr_of_data
   }
 
+  pub fn get_ppc(&self) -> &u16 {
+    &self.ppc
+  }
+
   // Interrupt: reset
   // Reset all internal values to defaults
   pub fn reset(&mut self) {
-    let hi = self.read_addr(RESET_ADDRESS + 0) as u16;
-    let lo = self.read_addr(RESET_ADDRESS + 1) as u16;
-    println!("{}{}", hi, lo);
+    let lo = self.read_addr(RESET_ADDRESS + 0) as u16;
+    let hi = self.read_addr(RESET_ADDRESS + 1) as u16;
 
     self.pc = (hi << 8) | lo;
+
+    self.pc = 0xC000;
 
     self.acc = 0;
     self.x = 0;
@@ -140,7 +128,7 @@ impl Cpu {
 
     self.addr_of_data = 0x0000;
 
-    self.cycles = 8;
+    self.cycles = 7;
   }
   // Interrupt: request
   pub fn irq(&mut self) {
@@ -166,13 +154,14 @@ impl Cpu {
     self.set_flag('U', 1);
     self.set_flag('I', 1);
     self.stack_push(self.status);
-    self.pc = self.read_addr_from(BRK_ADDR_BEGIN);
+    self.pc = self.read_addr_from(NMI_ADDR_BEGIN);
 
     self.cycles = 8;
   }
   // Perform one clock cycle
   pub fn clock(&mut self) {
     if self.is_cycle_complete() {
+      self.ppc = self.pc;
       // Read the program counter
       self.opcode = self.read_pc_addr();
       // Always set the unused flag to 1
@@ -200,10 +189,12 @@ impl Cpu {
   }
 
   pub fn step(&mut self) {
+    if self.is_cycle_complete() {
+      self.clock()
+    }
     while !self.is_cycle_complete() {
       self.clock()
     }
-    self.clock()
   }
 
   fn perform_operation(&mut self, ptr: u16, operation: &Operation, address_mode: &AddressMode) {
@@ -216,7 +207,7 @@ impl Cpu {
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool(
           'V',
-          ((self.acc as u16) ^ result & !((self.acc as u16) ^ (data as u16))) & 0x0080 > 0,
+          (((self.acc as u16) ^ result) & !((self.acc as u16) ^ (data as u16))) & 0x0080 > 0,
         );
         self.set_flag_with_bool('N', result & 0x0080 > 0);
         self.acc = (result & 0xFF) as u8;
@@ -269,16 +260,17 @@ impl Cpu {
         }
       }
       Operation::BRK => {
-        // Set interrput flag
-        self.set_flag_with_bool('I', true);
+        // Set flags
+        self.set_flag('I', 1);
+        self.set_flag('B', 1);
+        // Increment pc (so RTI executes correctly)
         self.pc += 1;
         // Store incremented PC address bytes on stack
         let pc_hi = (self.pc & 0xFF00) >> 8;
         let pc_lo = self.pc & 0x00FF;
         self.stack_push(pc_hi as u8);
         self.stack_push(pc_lo as u8);
-        // Store status on stack with B flag set
-        self.set_flag('B', 1);
+        // Store status on stack
         self.stack_push(self.status);
         // Reset B flag
         self.set_flag('B', 0);
@@ -300,37 +292,37 @@ impl Cpu {
       Operation::CLI => self.set_flag('I', 0),
       Operation::CLV => self.set_flag('V', 0),
       Operation::CMP => {
-        let result = (self.acc as u16) - (data as u16);
+        let result = self.acc.wrapping_sub(data);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('C', self.acc >= data);
         self.set_flag_with_bool('N', result & 0x80 > 0);
       }
       Operation::CPX => {
-        let result = (self.x as u16) - (data as u16);
+        let result = (self.x as u16).wrapping_sub(data as u16);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('C', self.x >= data);
         self.set_flag_with_bool('N', result & 0x80 > 0);
       }
       Operation::CPY => {
-        let result = (self.y as u16) - (data as u16);
+        let result = (self.y as u16).wrapping_sub(data as u16);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('C', self.y >= data);
         self.set_flag_with_bool('N', result & 0x80 > 0);
       }
       Operation::DEC => {
-        let result = data - 1;
+        let result = data.wrapping_sub(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.write_addr(ptr, result & 0x00FF);
       }
       Operation::DEX => {
-        let result = self.x - 1;
+        let result = self.x.wrapping_sub(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.x = result & 0x00FF;
       }
       Operation::DEY => {
-        let result = self.y - 1;
+        let result = self.y.wrapping_sub(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.y = result & 0x00FF;
@@ -342,28 +334,27 @@ impl Cpu {
         self.acc = result & 0x00FF;
       }
       Operation::INC => {
-        let result = data + 1;
+        let result = data.wrapping_add(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.write_addr(ptr, result & 0x00FF);
       }
       Operation::INX => {
-        let result = self.x + 1;
+        let result = self.x.wrapping_add(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.x = result & 0x00FF;
       }
       Operation::INY => {
-        let result = self.y + 1;
+        let result = self.y.wrapping_add(1);
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.y = result & 0x00FF;
       }
-      Operation::JMP => self.pc = self.get_byte_at_pc(),
+      Operation::JMP => self.pc = ptr,
       Operation::JSR => {
         self.pc -= 1;
-        self.stack_push(((self.pc >> 8) & 0xFF00) as u8);
-        self.stack_push((self.pc & 0x00FF) as u8);
+        self.push_pc_to_stack();
         self.pc = ptr;
       }
       Operation::LDA => {
@@ -381,16 +372,22 @@ impl Cpu {
         self.set_flag_with_bool('N', (data & 0x80) > 0);
         self.y = data
       }
-      Operation::LSR => {
-        self.set_flag_with_bool('C', (data & 0x01) > 0);
-        let result = data >> 1;
-        self.set_flag('N', 0);
-        self.set_flag_with_bool('Z', result == 0);
-        match address_mode {
-          &AddressMode::Implied => self.acc = result & 0x00FF,
-          _ => self.write_addr(ptr, result & 0x00FF),
-        };
-      }
+      Operation::LSR => match address_mode {
+        &AddressMode::Accumulator => {
+          let result = self.acc >> 1;
+          self.set_flag_with_bool('C', (self.acc & 0x01) > 0);
+          self.set_flag('N', 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.acc = result;
+        }
+        _ => {
+          let result = data >> 1;
+          self.set_flag_with_bool('C', (data & 0x01) > 0);
+          self.set_flag('N', 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.write_addr(ptr, result);
+        }
+      },
       Operation::NOP => {
         match self.opcode {
           0xFC => self.cycles += 1,
@@ -403,45 +400,51 @@ impl Cpu {
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.acc = result;
       }
-      Operation::PHA => {
-        self.write_addr(STACK_BASE_ADDR + self.stkp as u16, self.acc);
-        self.stkp -= 1;
-      }
+      Operation::PHA => self.stack_push(self.acc),
       Operation::PHP => self.stack_push(self.status),
       Operation::PLA => self.acc = self.stack_pop(),
       Operation::PLP => self.status = self.stack_pop(),
-      Operation::ROL => {
-        let result = (data as u16) << 1 | self.get_flag('C') as u16;
-        self.set_flag_with_bool('C', result & 0xFF00 > 0);
-        self.set_flag_with_bool('Z', result == 0);
-        self.set_flag_with_bool('N', result & 0x0080 > 0);
-        match address_mode {
-          &AddressMode::Implied => self.acc = (result & 0x00FF) as u8,
-          _ => self.write_addr(ptr, (result & 0x00FF) as u8),
-        };
-      }
-      Operation::ROR => {
-        let result = (self.get_flag('C') as u16) << 7 | ((data as u16) >> 1);
-        self.set_flag_with_bool('C', result & 0x0001 > 0);
-        self.set_flag_with_bool('Z', (result & 0x00FF) == 0);
-        self.set_flag_with_bool('N', result & 0x0080 > 0);
-        match address_mode {
-          &AddressMode::Implied => self.acc = (result & 0x00FF) as u8,
-          _ => self.write_addr(ptr, (result & 0x00FF) as u8),
-        };
-      }
+      Operation::ROL => match address_mode {
+        &AddressMode::Accumulator => {
+          let result = (self.acc as u16) << 1 | self.get_flag('C') as u16;
+          self.set_flag_with_bool('C', result & 0xFF00 > 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.set_flag_with_bool('N', result & 0x0080 > 0);
+          self.acc = (result & 0x00FF) as u8
+        }
+        _ => {
+          let result = (data as u16) << 1 | self.get_flag('C') as u16;
+          self.set_flag_with_bool('C', result & 0xFF00 > 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.set_flag_with_bool('N', result & 0x0080 > 0);
+          self.write_addr(ptr, (result & 0x00FF) as u8)
+        }
+      },
+      Operation::ROR => match address_mode {
+        &AddressMode::Accumulator => {
+          let result = ((self.get_flag('C') as u8) << 7) | (self.acc >> 1);
+          self.set_flag_with_bool('C', data & 0x01 > 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.set_flag_with_bool('N', result & 0x80 > 0);
+          self.acc = result;
+        }
+        _ => {
+          let result = ((self.get_flag('C') as u8) << 7) | (data >> 1);
+          self.set_flag_with_bool('C', data & 0x01 > 0);
+          self.set_flag_with_bool('Z', result == 0);
+          self.set_flag_with_bool('N', result & 0x80 > 0);
+          self.write_addr(ptr, result)
+        }
+      },
       Operation::RTI => {
         self.status = self.stack_pop();
         self.set_flag('B', 0);
         self.set_flag('U', 0);
-        let lo = self.stack_pop() as u16;
-        let hi = self.stack_pop() as u16;
-        self.pc = (hi << 8) | lo;
+        self.set_flag('I', 0);
+        self.pc = self.pop_address_from_stack();
       }
       Operation::RTS => {
-        let lo = self.stack_pop() as u16;
-        let hi = self.stack_pop() as u16;
-        self.pc = (hi << 8) | lo;
+        self.pc = self.pop_address_from_stack();
         self.pc += 1;
       }
       Operation::SBC => {
@@ -466,7 +469,7 @@ impl Cpu {
       Operation::TAY => self.y = self.acc,
       Operation::TSX => self.x = self.stkp,
       Operation::TXA => self.acc = self.x,
-      Operation::TXS => self.status = self.x,
+      Operation::TXS => self.stkp = self.x,
       Operation::TYA => self.acc = self.y,
       Operation::XXX => (),
     }
@@ -484,6 +487,16 @@ impl Cpu {
   fn stack_pop(&mut self) -> u8 {
     self.stkp += 1;
     self.read_addr(STACK_BASE_ADDR + (self.stkp as u16))
+  }
+
+  fn push_pc_to_stack(&mut self) {
+    self.stack_push(((self.pc >> 8) & 0x00FF) as u8);
+    self.stack_push((self.pc & 0x00FF) as u8);
+  }
+  fn pop_address_from_stack(&mut self) -> u16 {
+    let lo = self.stack_pop() as u16;
+    let hi = self.stack_pop() as u16;
+    (hi << 8) | lo
   }
 
   fn branch(&mut self, data: i16) {
@@ -537,7 +550,8 @@ impl Cpu {
       }
       AddressMode::Accumulator => self.acc as u16,
       AddressMode::Immediate => self.pc,
-      AddressMode::Implied => self.acc as u16, // TODO: is this right?
+      // If the address mode is implied, it doesn't need an address
+      AddressMode::Implied => 0x0000,
       AddressMode::IndirectX => {
         let offset = self.read_pc_addr();
         let zero_ptr = (self.x + offset) as u16;
@@ -571,8 +585,10 @@ impl Cpu {
         let offset = self.read_pc_addr() as u16;
 
         if offset & 0x80 > 0 {
+          // If offset is negative, make it a 16 bit starting with 0xFF..
           offset | 0xFF00
         } else {
+          // If offset is positive
           offset
         }
       }
@@ -585,10 +601,6 @@ impl Cpu {
   // Returns if current cycle is complete
   pub fn is_cycle_complete(&self) -> bool {
     self.cycles == 0
-  }
-  // Connects a new bus
-  pub fn replace_bus(&mut self, bus: Bus) {
-    self.bus = bus;
   }
 
   pub fn get_flag(&self, flag: char) -> bool {
@@ -638,7 +650,7 @@ impl Cpu {
 
   fn read_pc_addr(&mut self) -> u8 {
     let result = self.read_addr(self.pc);
-    self.pc += 1;
+    self.pc = self.pc.wrapping_add(1);
     result
   }
 
