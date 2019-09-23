@@ -12,6 +12,7 @@ use cpu::Cpu;
 use data_flow::{HexByte, HexSlice, MemoryAddress, ReadRange, ReadWrite};
 use event::{Config, Event, Events};
 
+use std::convert::TryInto;
 use std::env;
 use std::fs::File;
 use std::io;
@@ -52,7 +53,7 @@ fn main() -> Result<(), failure::Error> {
   println!("{}", termion::clear::All);
 
   loop {
-    if *cpu.get_current_tick() < 324 {
+    if *cpu.get_current_tick() < 14_600 {
       cpu.clock();
       continue;
     }
@@ -97,9 +98,9 @@ where
 }
 
 fn load_program_memory(bus: &mut Bus, filename: &String) -> std::io::Result<()> {
-  let mut cartridge_memory = Vec::new();
-
   let mut cartridge = File::open(filename)?;
+  let metadata = cartridge.metadata()?;
+  let mut cartridge_memory = Vec::with_capacity(metadata.len().try_into().unwrap());
   cartridge.read_to_end(&mut cartridge_memory)?;
 
   if filename == "nestest.nes" {
@@ -158,7 +159,7 @@ where
   B: Backend,
 {
   let flags = ['N', 'V', 'U', 'B', 'D', 'I', 'Z', 'C'];
-  let mut text = vec![];
+  let mut text = Vec::with_capacity(35);
   text.push(Text::raw("Status:       "));
   for flag in &flags {
     match cpu.get_flag(*flag) {
@@ -311,7 +312,6 @@ fn draw_memory_page<B>(
   B: Backend,
 {
   let bus = cpu.get_mut_bus_ref();
-  let mut text = vec![];
   let starting_address = match address {
     0x0000..=0xFFF0 => address & 0xFFF0,
     0xFFF1..=0xFFFF => 0xFFF0,
@@ -320,6 +320,12 @@ fn draw_memory_page<B>(
     0x0000..=0xFFFF => starting_address + offset,
     _ => 0xFFFF,
   };
+  let vec_size = if highlight_address != 0 {
+    (((ending_address - starting_address) / 16) as usize) * 5
+  } else {
+    (((ending_address - starting_address) / 16) as usize) * 3
+  };
+  let mut text = Vec::with_capacity(vec_size);
 
   for i in (starting_address..=ending_address).step_by(16) {
     let root_addr = MemoryAddress::new(i);
