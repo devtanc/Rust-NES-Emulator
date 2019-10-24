@@ -53,10 +53,10 @@ fn main() -> Result<(), failure::Error> {
   println!("{}", termion::clear::All);
 
   loop {
-    if *cpu.get_current_tick() < 14_600 {
-      cpu.clock();
-      continue;
-    }
+    // if *cpu.get_current_tick() < 14_600 {
+    //   cpu.clock();
+    //   continue;
+    // }
     draw_ui(&mut terminal, &mut cpu)?;
     match events.next()? {
       Event::Input(key) => match key {
@@ -103,7 +103,7 @@ fn load_program_memory(bus: &mut Bus, filename: &String) -> std::io::Result<()> 
   let mut cartridge_memory = Vec::with_capacity(metadata.len().try_into().unwrap());
   cartridge.read_to_end(&mut cartridge_memory)?;
 
-  if filename == "nestest.nes" {
+  if filename.contains("/nestest.nes") {
     load_nestest(bus, &cartridge_memory);
   } else {
     let mut current_address = CARTRIDGE_ADDR;
@@ -147,7 +147,7 @@ where
     f,
     chunks[1],
     cpu,
-    0x0200,
+    0xC000,
     32 * BYTES_PER_ROW,
     " Results ",
     0x0200,
