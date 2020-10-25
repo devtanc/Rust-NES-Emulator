@@ -402,7 +402,12 @@ impl Cpu {
       }
       Operation::PHA => self.stack_push(self.acc),
       Operation::PHP => self.stack_push(self.status),
-      Operation::PLA => self.acc = self.stack_pop(),
+      Operation::PLA => {
+        let result = self.stack_pop();
+        self.set_flag_with_bool('Z', result == 0);
+        self.set_flag_with_bool('N', (result & 0x80) > 0);
+        self.acc = result;
+      },
       Operation::PLP => self.status = self.stack_pop(),
       Operation::ROL => match address_mode {
         &AddressMode::Accumulator => {
@@ -504,6 +509,7 @@ impl Cpu {
   fn branch(&mut self, offset: i16) {
     self.cycles += 1;
     let destination = self.pc.wrapping_add(offset as u16);
+    // TODO: Instruction C85A is only incrementing once instead of twice in the nestest.nes tests
     if destination & 0xFF00 != self.pc & 0xFF00 {
       self.cycles += 1
     }

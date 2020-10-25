@@ -454,6 +454,26 @@ mod pla {
     cpu.perform_operation(ROOT, OP, DEF_ADDR_MODE);
     assert_eq!(cpu.acc, 0xAD);
   }
+
+  #[test]
+  fn sets_zero_flag_when_stack_value_is_zero() {
+    let mut cpu = Cpu::new();
+    cpu.acc = 0x00;
+    cpu.status = 0x00;
+    cpu.stack_push(0x00);
+    cpu.perform_operation(ROOT, OP, DEF_ADDR_MODE);
+    assert_eq!(cpu.status, 0x02);
+  }
+
+  #[test]
+  fn sets_neg_flag_when_stack_value_is_neg() {
+    let mut cpu = Cpu::new();
+    cpu.acc = 0x00;
+    cpu.status = 0x00;
+    cpu.stack_push(0x85);
+    cpu.perform_operation(ROOT, OP, DEF_ADDR_MODE);
+    assert_eq!(cpu.status, 0x80);
+  }
 }
 
 #[cfg(test)]
