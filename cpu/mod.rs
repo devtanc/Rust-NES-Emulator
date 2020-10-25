@@ -70,6 +70,10 @@ impl Cpu {
   pub fn get_acc(&self) -> &u8 {
     &self.acc
   }
+  
+  pub fn get_status(&self) -> &u8 {
+    &self.status
+  }
 
   pub fn get_x(&self) -> &u8 {
     &self.x

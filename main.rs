@@ -33,6 +33,7 @@ const ZERO_PAGE_START: u16 = 0x0000;
 const STACK_BASE_ADDR: u16 = 0x0100;
 const DEFAULT_TICK_RATE: u64 = 200;
 const BYTES_PER_ROW: u16 = 16;
+const MEMORY_WINDOW_START_ADDRESS: u16 = 0xC000;
 
 fn main() -> Result<(), failure::Error> {
   let args: Vec<String> = env::args().collect();
@@ -138,29 +139,40 @@ fn draw_instructions_panel<B>(f: &mut Frame<B>, area: Rect, cpu: &mut Cpu)
 where
   B: Backend,
 {
+  let addr_hex = MemoryAddress::new(MEMORY_WINDOW_START_ADDRESS);
+  let memory_view_title = format!(" Program memory starting at 0x{} ", addr_hex);
   let chunks = Layout::default()
     .direction(Direction::Vertical)
-    .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
+    .constraints(
+      [
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
+        Constraint::Percentage(60),
+      ]
+      .as_ref(),
+    )
     .split(area);
-  draw_status_register(f, chunks[0], cpu);
+  draw_registers(f, chunks[0], cpu);
+  draw_cpu_process_info(f, chunks[1], cpu);
   draw_memory_page(
     f,
-    chunks[1],
+    chunks[2],
     cpu,
-    0xC000,
-    32 * BYTES_PER_ROW,
-    " Results ",
+    MEMORY_WINDOW_START_ADDRESS,
+    48 * BYTES_PER_ROW,
+    &memory_view_title,
     0x0200,
   );
 }
 
-fn draw_status_register<B>(f: &mut Frame<B>, area: Rect, cpu: &Cpu)
+fn draw_registers<B>(f: &mut Frame<B>, area: Rect, cpu: &Cpu)
 where
   B: Backend,
 {
   let flags = ['N', 'V', 'U', 'B', 'D', 'I', 'Z', 'C'];
   let mut text = Vec::with_capacity(35);
-  text.push(Text::raw("Status:       "));
+
+  text.push(Text::raw("Status Flags:   "));
   for flag in &flags {
     match cpu.get_flag(*flag) {
       true => text.push(Text::styled(
@@ -173,6 +185,13 @@ where
       )),
     };
   }
+
+  text.push(Text::raw("\n\nStatus HEX:     "));
+  let status = *cpu.get_status();
+  let status_hex = HexByte::new(status);
+  text.push(Text::raw(format!("0x{}  ", status_hex)));
+  text.push(Text::raw(format!("[{}]", status)));
+
   text.push(Text::raw("\nAccumulator:    "));
   let acc = *cpu.get_acc();
   let acc_hex = HexByte::new(acc);
@@ -199,11 +218,28 @@ where
   let pc = MemoryAddress::new(*cpu.get_pc());
   text.push(Text::raw(format!("0x{}", pc)));
 
-  text.push(Text::raw("\nInstruc Addr:   "));
+  Paragraph::new(text.iter())
+    .block(
+      Block::default()
+        .borders(Borders::ALL)
+        .title(" Registers ")
+        .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD)),
+    )
+    .wrap(false)
+    .render(f, area);
+}
+
+fn draw_cpu_process_info<B>(f: &mut Frame<B>, area: Rect, cpu: &Cpu)
+where
+  B: Backend,
+{
+  let mut text = Vec::with_capacity(35);
+
+  text.push(Text::raw("Prev inst addr: "));
   let ppc = MemoryAddress::new(*cpu.get_ppc());
   text.push(Text::raw(format!("0x{}", ppc)));
 
-  text.push(Text::raw("\nOperation:      "));
+  text.push(Text::raw("\nNext Operation: "));
   let opcode = *cpu.get_opcode();
   let hex_opcode = HexByte::new(opcode);
   let instruction = get_instruction(opcode);
@@ -225,7 +261,7 @@ where
     .block(
       Block::default()
         .borders(Borders::ALL)
-        .title(" Registers ")
+        .title(" CPU Instruction Processing ")
         .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD)),
     )
     .wrap(false)
@@ -257,7 +293,7 @@ where
         Constraint::Percentage(32),
         Constraint::Percentage(32),
         Constraint::Percentage(32),
-        Constraint::Percentage(6),
+        Constraint::Percentage(4),
       ]
       .as_ref(),
     )
