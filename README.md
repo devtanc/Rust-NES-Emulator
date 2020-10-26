@@ -14,7 +14,7 @@ Use the spacebar to step through the program, one operation at a time
 
 # Docs for the 6504 CPU and tests
 
-Documentation for the CPU is included here in this repo in the `6502 CPU` folder. Additional documentation can be found on [nesdev.com](http://nesdev.com/6502_cpu.txt)
+Documentation for the CPU is included here in this repo in the `6502 CPU` folder [source1](http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf), [source2](https://www.chibiakumas.com/6502/CheatSheet.pdf). Additional documentation can be found on [nesdev.com](http://nesdev.com/6502_cpu.txt)
 
 The docs for the tests can be found [here](https://www.qmtpro.com/~nes/misc/nestest.txt), and the logs that the cpu should match at any given program step are found [here](https://www.qmtpro.com/~nes/misc/nestest.log).
 
