@@ -17,3 +17,5 @@ Use the spacebar to step through the program, one operation at a time
 Documentation for the CPU is included here in this repo in the `6502 CPU` folder. Additional documentation can be found on [nesdev.com](http://nesdev.com/6502_cpu.txt)
 
 The docs for the tests can be found [here](https://www.qmtpro.com/~nes/misc/nestest.txt), and the logs that the cpu should match at any given program step are found [here](https://www.qmtpro.com/~nes/misc/nestest.log).
+
+Information on the overflow flag logic can be found [here](http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html)
