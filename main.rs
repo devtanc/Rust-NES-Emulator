@@ -235,19 +235,22 @@ where
 {
   let mut text = Vec::with_capacity(35);
 
-  text.push(Text::raw("Prev inst addr: "));
+  text.push(Text::raw("Executed opcode addr: "));
   let ppc = MemoryAddress::new(*cpu.get_ppc());
   text.push(Text::raw(format!("0x{}", ppc)));
 
-  text.push(Text::raw("\nNext Operation: "));
+  text.push(Text::raw("\nExecuted opcode: "));
   let opcode = *cpu.get_opcode();
   let hex_opcode = HexByte::new(opcode);
   let instruction = get_instruction(opcode);
-  let data_addr = MemoryAddress::new(*cpu.get_addr_of_data());
+  let data_addr = *cpu.get_addr_of_data();
+  let data_addr_struct = MemoryAddress::new(data_addr);
+  let data = HexByte::new(cpu.read_addr(data_addr));
   text.push(Text::raw(format!("0x{}  -> ", hex_opcode)));
   text.push(Text::raw(format!("[{}]:", instruction.get_operation())));
   text.push(Text::raw(format!("[{}]:", instruction.get_address_mode())));
-  text.push(Text::raw(format!("[{}]", data_addr)));
+  text.push(Text::raw(format!("[0x{}]:", data_addr_struct)));
+  text.push(Text::raw(format!("[0x{}]", data)));
 
   text.push(Text::raw("\nOpcode Cycles:  "));
   let curr_command_cycles = cpu.get_cycles();
