@@ -70,7 +70,6 @@ impl Cpu {
   pub fn get_acc(&self) -> &u8 {
     &self.acc
   }
-  
   pub fn get_status(&self) -> &u8 {
     &self.status
   }
@@ -206,26 +205,25 @@ impl Cpu {
 
     match operation {
       Operation::ADC => {
-        let result = (self.acc as u16) + (data as u16) + (self.get_flag('C') as u16);
-        self.set_flag_with_bool('C', result > 0xFF);
+        let result_16 = (self.acc as u16) + (data as u16) + (self.get_flag('C') as u16);
+        self.set_flag_with_bool('C', result_16 > 0xFF);
+
+        let result = result_16 as u8;
         self.set_flag_with_bool('Z', result == 0);
-        self.set_flag_with_bool(
-          'V',
-          (((self.acc as u16) ^ result) & !((self.acc as u16) ^ (data as u16))) & 0x0080 > 0,
-        );
-        self.set_flag_with_bool('N', result & 0x0080 > 0);
-        self.acc = (result & 0xFF) as u8;
+        self.set_flag_with_bool('V', ((self.acc ^ result) & !(self.acc ^ data)) & 0x80 > 0);
+        self.set_flag_with_bool('N', result & 0x80 > 0);
+        self.acc = result;
       }
       Operation::AND => {
         let result = self.acc & data;
+        self.set_flag_with_bool('N', result & 0x80 > 0);
         self.set_flag_with_bool('Z', result == 0);
-        self.set_flag('N', (result & 0x0080) >> 7);
       }
       Operation::ASL => {
         let result = data << 1;
         self.set_flag_with_bool('C', result < data);
         self.set_flag_with_bool('Z', result == 0);
-        self.set_flag_with_bool('N', result & 0x0080 > 0);
+        self.set_flag_with_bool('N', result & 0x80 > 0);
       }
       Operation::BCC => {
         if !self.get_flag('C') {
@@ -411,7 +409,7 @@ impl Cpu {
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool('N', (result & 0x80) > 0);
         self.acc = result;
-      },
+      }
       Operation::PLP => self.status = self.stack_pop(),
       Operation::ROL => match address_mode {
         &AddressMode::Accumulator => {
@@ -457,13 +455,15 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(1);
       }
       Operation::SBC => {
-        let inverted_data = (data as u16) ^ 0x00FF;
-        let result = (self.acc as u16) + inverted_data + (self.get_flag('C') as u16);
-        self.set_flag_with_bool('C', result > 0xFF);
+        let inverted_data = !data;
+        let result_16 = (self.acc as u16) + (inverted_data as u16) + (self.get_flag('C') as u16);
+        self.set_flag_with_bool('C', result_16 > 0xFF);
+
+        let result = result_16 as u8;
         self.set_flag_with_bool('Z', result == 0);
         self.set_flag_with_bool(
           'V',
-          ((self.acc as u16) ^ result & !((self.acc as u16) ^ inverted_data)) & 0x0080 > 0,
+          (self.acc ^ result & !(self.acc ^ inverted_data)) & 0x80 > 0,
         );
         self.set_flag_with_bool('N', result & 0x80 > 0);
         self.acc = (result & 0xFF) as u8;
