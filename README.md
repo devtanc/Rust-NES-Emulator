@@ -14,8 +14,10 @@ Use the spacebar to step through the program, one operation at a time
 
 # Docs for the 6504 CPU and tests
 
-Documentation for the CPU is included here in this repo in the `6502 CPU` folder [source1](http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf), [source2](https://www.chibiakumas.com/6502/CheatSheet.pdf). Additional documentation can be found on [nesdev.com](http://nesdev.com/6502_cpu.txt)
+Documentation for the CPU is included here in this repo in the `6502 CPU` folder [source1](http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf), [source2](https://www.chibiakumas.com/6502/CheatSheet.pdf). Additional documentation can be found on [nesdev.com](http://nesdev.com/6502_cpu.txt), or on [6502.org](http://www.6502.org/).
 
 The docs for the tests can be found [here](https://www.qmtpro.com/~nes/misc/nestest.txt), and the logs that the cpu should match at any given program step are found [here](https://www.qmtpro.com/~nes/misc/nestest.log).
 
-Information on the overflow flag logic can be found [here](http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html)
+A good guide with opcodes is [here](http://www.6502.org/tutorials/6502opcodes.html).
+
+Information about various flags can be found [here](https://wiki.nesdev.com/w/index.php/Status_flags). Information on the overflow flag logic can be found [here](http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html)
