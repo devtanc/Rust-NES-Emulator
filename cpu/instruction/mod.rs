@@ -213,6 +213,9 @@ impl Instruction {
 }
 
 pub fn get_instruction(opcode: u8) -> Instruction {
+  // From http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf
+  // *1 - Add 1 to cycles if page boundary is crossed
+  // *2 - Add 1 to cycles if branch occurs to same page; add 2 if branch occurs to different page
   match opcode {
     0x00 => Instruction::new(Operation::BRK, AddressMode::Implied, 1, 7),
     0x01 => Instruction::new(Operation::ORA, AddressMode::IndirectX, 2, 6),
@@ -223,13 +226,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0x0A => Instruction::new(Operation::ASL, AddressMode::Accumulator, 1, 2),
     0x0D => Instruction::new(Operation::ORA, AddressMode::Absolute, 3, 4),
     0x0E => Instruction::new(Operation::ASL, AddressMode::Absolute, 3, 6),
-    0x10 => Instruction::new(Operation::BPL, AddressMode::Relative, 2, 2),
-    0x11 => Instruction::new(Operation::ORA, AddressMode::IndirectY, 2, 5),
+    0x10 => Instruction::new(Operation::BPL, AddressMode::Relative, 2, 2), // *2
+    0x11 => Instruction::new(Operation::ORA, AddressMode::IndirectY, 2, 5), // *1
     0x15 => Instruction::new(Operation::ORA, AddressMode::ZeroPageX, 2, 4),
     0x16 => Instruction::new(Operation::ASL, AddressMode::ZeroPageX, 2, 6),
     0x18 => Instruction::new(Operation::CLC, AddressMode::Implied, 1, 2),
-    0x19 => Instruction::new(Operation::ORA, AddressMode::AbsoluteY, 3, 4),
-    0x1D => Instruction::new(Operation::ORA, AddressMode::AbsoluteX, 3, 4),
+    0x19 => Instruction::new(Operation::ORA, AddressMode::AbsoluteY, 3, 4), // *1
+    0x1D => Instruction::new(Operation::ORA, AddressMode::AbsoluteX, 3, 4), // *1
     0x1E => Instruction::new(Operation::ASL, AddressMode::AbsoluteX, 3, 7),
     0x20 => Instruction::new(Operation::JSR, AddressMode::Absolute, 3, 6),
     0x21 => Instruction::new(Operation::AND, AddressMode::IndirectX, 2, 6),
@@ -242,13 +245,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0x2C => Instruction::new(Operation::BIT, AddressMode::Absolute, 3, 4),
     0x2D => Instruction::new(Operation::AND, AddressMode::Absolute, 3, 4),
     0x2E => Instruction::new(Operation::ROL, AddressMode::Absolute, 3, 6),
-    0x30 => Instruction::new(Operation::BMI, AddressMode::Relative, 2, 2),
-    0x31 => Instruction::new(Operation::AND, AddressMode::IndirectY, 2, 5),
+    0x30 => Instruction::new(Operation::BMI, AddressMode::Relative, 2, 2), // *2
+    0x31 => Instruction::new(Operation::AND, AddressMode::IndirectY, 2, 5), // *1
     0x35 => Instruction::new(Operation::AND, AddressMode::ZeroPageX, 2, 4),
     0x36 => Instruction::new(Operation::ROL, AddressMode::ZeroPageX, 2, 6),
     0x38 => Instruction::new(Operation::SEC, AddressMode::Implied, 1, 2),
-    0x39 => Instruction::new(Operation::AND, AddressMode::AbsoluteY, 3, 4),
-    0x3D => Instruction::new(Operation::AND, AddressMode::AbsoluteX, 3, 4),
+    0x39 => Instruction::new(Operation::AND, AddressMode::AbsoluteY, 3, 4), // *1
+    0x3D => Instruction::new(Operation::AND, AddressMode::AbsoluteX, 3, 4), // *1
     0x3E => Instruction::new(Operation::ROL, AddressMode::AbsoluteX, 3, 7),
     0x40 => Instruction::new(Operation::RTI, AddressMode::Implied, 1, 6),
     0x41 => Instruction::new(Operation::EOR, AddressMode::IndirectX, 2, 6),
@@ -260,13 +263,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0x4C => Instruction::new(Operation::JMP, AddressMode::Absolute, 3, 3),
     0x4D => Instruction::new(Operation::EOR, AddressMode::Absolute, 3, 4),
     0x4E => Instruction::new(Operation::LSR, AddressMode::Absolute, 3, 6),
-    0x50 => Instruction::new(Operation::BVC, AddressMode::Relative, 2, 2),
-    0x51 => Instruction::new(Operation::EOR, AddressMode::IndirectY, 2, 5),
+    0x50 => Instruction::new(Operation::BVC, AddressMode::Relative, 2, 2), // *2
+    0x51 => Instruction::new(Operation::EOR, AddressMode::IndirectY, 2, 5), // *1
     0x55 => Instruction::new(Operation::EOR, AddressMode::ZeroPageX, 2, 4),
     0x56 => Instruction::new(Operation::LSR, AddressMode::ZeroPageX, 2, 6),
     0x58 => Instruction::new(Operation::CLI, AddressMode::Implied, 1, 2),
-    0x59 => Instruction::new(Operation::EOR, AddressMode::AbsoluteY, 3, 4),
-    0x5D => Instruction::new(Operation::EOR, AddressMode::AbsoluteX, 3, 4),
+    0x59 => Instruction::new(Operation::EOR, AddressMode::AbsoluteY, 3, 4), // *1
+    0x5D => Instruction::new(Operation::EOR, AddressMode::AbsoluteX, 3, 4), // *1
     0x5E => Instruction::new(Operation::LSR, AddressMode::AbsoluteX, 3, 7),
     0x60 => Instruction::new(Operation::RTS, AddressMode::Implied, 1, 6),
     0x61 => Instruction::new(Operation::ADC, AddressMode::IndirectX, 2, 6),
@@ -278,13 +281,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0x6C => Instruction::new(Operation::JMP, AddressMode::AbsoluteIndirect, 3, 5),
     0x6D => Instruction::new(Operation::ADC, AddressMode::Absolute, 3, 4),
     0x6E => Instruction::new(Operation::ROR, AddressMode::Absolute, 3, 6),
-    0x70 => Instruction::new(Operation::BVS, AddressMode::Relative, 2, 2),
-    0x71 => Instruction::new(Operation::ADC, AddressMode::IndirectY, 2, 5),
+    0x70 => Instruction::new(Operation::BVS, AddressMode::Relative, 2, 2), // *2
+    0x71 => Instruction::new(Operation::ADC, AddressMode::IndirectY, 2, 5), // *1
     0x75 => Instruction::new(Operation::ADC, AddressMode::ZeroPageX, 2, 4),
     0x76 => Instruction::new(Operation::ROR, AddressMode::ZeroPageX, 2, 6),
     0x78 => Instruction::new(Operation::SEI, AddressMode::Implied, 1, 2),
-    0x79 => Instruction::new(Operation::ADC, AddressMode::AbsoluteY, 3, 4),
-    0x7D => Instruction::new(Operation::ADC, AddressMode::AbsoluteX, 3, 4),
+    0x79 => Instruction::new(Operation::ADC, AddressMode::AbsoluteY, 3, 4), // *1
+    0x7D => Instruction::new(Operation::ADC, AddressMode::AbsoluteX, 3, 4), // *1
     0x7E => Instruction::new(Operation::ROR, AddressMode::AbsoluteX, 3, 7),
     0x81 => Instruction::new(Operation::STA, AddressMode::IndirectX, 2, 6),
     0x84 => Instruction::new(Operation::STY, AddressMode::ZeroPage, 2, 3),
@@ -295,7 +298,7 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0x8C => Instruction::new(Operation::STY, AddressMode::Absolute, 3, 4),
     0x8D => Instruction::new(Operation::STA, AddressMode::Absolute, 3, 4),
     0x8E => Instruction::new(Operation::STX, AddressMode::Absolute, 3, 4),
-    0x90 => Instruction::new(Operation::BCC, AddressMode::Relative, 2, 2),
+    0x90 => Instruction::new(Operation::BCC, AddressMode::Relative, 2, 2), // *2
     0x91 => Instruction::new(Operation::STA, AddressMode::IndirectY, 2, 6),
     0x94 => Instruction::new(Operation::STY, AddressMode::ZeroPageX, 2, 4),
     0x95 => Instruction::new(Operation::STA, AddressMode::ZeroPageX, 2, 4),
@@ -316,17 +319,17 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0xAC => Instruction::new(Operation::LDY, AddressMode::Absolute, 3, 4),
     0xAD => Instruction::new(Operation::LDA, AddressMode::Absolute, 3, 4),
     0xAE => Instruction::new(Operation::LDX, AddressMode::Absolute, 3, 4),
-    0xB0 => Instruction::new(Operation::BCS, AddressMode::Relative, 2, 2),
-    0xB1 => Instruction::new(Operation::LDA, AddressMode::IndirectY, 2, 5),
+    0xB0 => Instruction::new(Operation::BCS, AddressMode::Relative, 2, 2), // *2
+    0xB1 => Instruction::new(Operation::LDA, AddressMode::IndirectY, 2, 5), // *1
     0xB4 => Instruction::new(Operation::LDY, AddressMode::ZeroPageX, 2, 4),
     0xB5 => Instruction::new(Operation::LDA, AddressMode::ZeroPageX, 2, 4),
     0xB6 => Instruction::new(Operation::LDX, AddressMode::ZeroPageY, 2, 4),
     0xB8 => Instruction::new(Operation::CLV, AddressMode::Implied, 1, 2),
-    0xB9 => Instruction::new(Operation::LDA, AddressMode::AbsoluteY, 3, 4),
+    0xB9 => Instruction::new(Operation::LDA, AddressMode::AbsoluteY, 3, 4), // *1
     0xBA => Instruction::new(Operation::TSX, AddressMode::Implied, 1, 2),
-    0xBC => Instruction::new(Operation::LDY, AddressMode::AbsoluteX, 3, 4),
-    0xBD => Instruction::new(Operation::LDA, AddressMode::AbsoluteX, 3, 4),
-    0xBE => Instruction::new(Operation::LDX, AddressMode::AbsoluteY, 3, 4),
+    0xBC => Instruction::new(Operation::LDY, AddressMode::AbsoluteX, 3, 4), // *1
+    0xBD => Instruction::new(Operation::LDA, AddressMode::AbsoluteX, 3, 4), // *1
+    0xBE => Instruction::new(Operation::LDX, AddressMode::AbsoluteY, 3, 4), // *1
     0xC0 => Instruction::new(Operation::CPY, AddressMode::Immediate, 2, 2),
     0xC1 => Instruction::new(Operation::CMP, AddressMode::IndirectX, 2, 6),
     0xC4 => Instruction::new(Operation::CPY, AddressMode::ZeroPage, 2, 3),
@@ -338,13 +341,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0xCC => Instruction::new(Operation::CPY, AddressMode::Absolute, 3, 4),
     0xCD => Instruction::new(Operation::CMP, AddressMode::Absolute, 3, 4),
     0xCE => Instruction::new(Operation::DEC, AddressMode::Absolute, 3, 6),
-    0xD0 => Instruction::new(Operation::BNE, AddressMode::Relative, 2, 2),
-    0xD1 => Instruction::new(Operation::CMP, AddressMode::IndirectY, 2, 5),
+    0xD0 => Instruction::new(Operation::BNE, AddressMode::Relative, 2, 2), // *2
+    0xD1 => Instruction::new(Operation::CMP, AddressMode::IndirectY, 2, 5), // *1
     0xD5 => Instruction::new(Operation::CMP, AddressMode::ZeroPageX, 2, 4),
     0xD6 => Instruction::new(Operation::DEC, AddressMode::ZeroPageX, 2, 6),
     0xD8 => Instruction::new(Operation::CLD, AddressMode::Implied, 1, 2),
-    0xD9 => Instruction::new(Operation::CMP, AddressMode::AbsoluteY, 3, 4),
-    0xDD => Instruction::new(Operation::CMP, AddressMode::AbsoluteX, 3, 4),
+    0xD9 => Instruction::new(Operation::CMP, AddressMode::AbsoluteY, 3, 4), // *1
+    0xDD => Instruction::new(Operation::CMP, AddressMode::AbsoluteX, 3, 4), // *1
     0xDE => Instruction::new(Operation::DEC, AddressMode::AbsoluteX, 3, 7),
     0xE0 => Instruction::new(Operation::CPX, AddressMode::Immediate, 2, 2),
     0xE1 => Instruction::new(Operation::SBC, AddressMode::IndirectX, 2, 6),
@@ -357,13 +360,13 @@ pub fn get_instruction(opcode: u8) -> Instruction {
     0xEC => Instruction::new(Operation::CPX, AddressMode::Absolute, 3, 4),
     0xED => Instruction::new(Operation::SBC, AddressMode::Absolute, 3, 4),
     0xEE => Instruction::new(Operation::INC, AddressMode::Absolute, 3, 6),
-    0xF0 => Instruction::new(Operation::BEQ, AddressMode::Relative, 2, 2),
-    0xF1 => Instruction::new(Operation::SBC, AddressMode::IndirectY, 2, 5),
+    0xF0 => Instruction::new(Operation::BEQ, AddressMode::Relative, 2, 2), // *2
+    0xF1 => Instruction::new(Operation::SBC, AddressMode::IndirectY, 2, 5), // *1
     0xF5 => Instruction::new(Operation::SBC, AddressMode::ZeroPageX, 2, 4),
     0xF6 => Instruction::new(Operation::INC, AddressMode::ZeroPageX, 2, 6),
     0xF8 => Instruction::new(Operation::SED, AddressMode::Implied, 1, 2),
-    0xF9 => Instruction::new(Operation::SBC, AddressMode::AbsoluteY, 3, 4),
-    0xFD => Instruction::new(Operation::SBC, AddressMode::AbsoluteX, 3, 4),
+    0xF9 => Instruction::new(Operation::SBC, AddressMode::AbsoluteY, 3, 4), // *1
+    0xFD => Instruction::new(Operation::SBC, AddressMode::AbsoluteX, 3, 4), // *1
     0xFE => Instruction::new(Operation::INC, AddressMode::AbsoluteX, 3, 7),
     _ => Instruction::invalid(),
   }
