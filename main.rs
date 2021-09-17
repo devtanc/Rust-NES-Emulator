@@ -33,7 +33,7 @@ const ZERO_PAGE_START: u16 = 0x0000;
 const STACK_BASE_ADDR: u16 = 0x0100;
 const DEFAULT_TICK_RATE: u64 = 200;
 const BYTES_PER_ROW: u16 = 16;
-const MEMORY_WINDOW_START_ADDRESS: u16 = 0xC000;
+// const MEMORY_WINDOW_START_ADDRESS: u16 = 0xC000;
 
 fn main() -> Result<(), failure::Error> {
   let args: Vec<String> = env::args().collect();
@@ -45,20 +45,32 @@ fn main() -> Result<(), failure::Error> {
   let stdout = io::stdout().into_raw_mode()?;
   let backend = TermionBackend::new(stdout);
   let mut terminal = Terminal::new(backend)?;
+  let mut history: Vec<Text> = Vec::new();
+  let mut current_tick = 4;
+  let mut new_tick: bool;
 
   let mut cpu = Cpu::new();
 
   load_program_memory(cpu.get_mut_bus_ref(), filename)?;
 
   cpu.reset();
+  // This section sets the clock to 4 after the reset
+  cpu.step();
   println!("{}", termion::clear::All);
 
   loop {
+    if current_tick != *cpu.get_current_tick() {
+      current_tick = *cpu.get_current_tick();
+      new_tick = true;
+    } else {
+      new_tick = false;
+    }
+
     // if *cpu.get_current_tick() < 14_600 {
     //   cpu.clock();
     //   continue;
     // }
-    draw_ui(&mut terminal, &mut cpu)?;
+    draw_ui(&mut terminal, &mut cpu, &mut history, new_tick)?;
     match events.next()? {
       Event::Input(key) => match key {
         Key::Char(' ') => {
@@ -83,7 +95,7 @@ fn main() -> Result<(), failure::Error> {
   Ok(())
 }
 
-fn draw_ui<B>(terminal: &mut Terminal<B>, cpu: &mut Cpu) -> Result<(), io::Error>
+fn draw_ui<B>(terminal: &mut Terminal<B>, cpu: &mut Cpu, history: &mut Vec<Text>, new_tick: bool) -> Result<(), io::Error>
 where
   B: Backend,
 {
@@ -94,7 +106,7 @@ where
       .constraints([Constraint::Percentage(60), Constraint::Percentage(40)].as_ref())
       .split(f.size());
     draw_memory_panel(&mut f, chunks[0], cpu);
-    draw_instructions_panel(&mut f, chunks[1], cpu);
+    draw_instructions_panel(&mut f, chunks[1], cpu, history, new_tick);
   })
 }
 
@@ -135,12 +147,63 @@ fn load_nestest(bus: &mut Bus, memory: &Vec<u8>) {
   }
 }
 
-fn draw_instructions_panel<B>(f: &mut Frame<B>, area: Rect, cpu: &mut Cpu)
+fn log(cpu: &Cpu, history: &mut Vec<Text>) {
+  let current_clock_cycle = cpu.get_current_tick();
+  let ppc = MemoryAddress::new(*cpu.get_ppc());
+
+  let opcode = cpu.get_opcode_at(*cpu.get_ppc());
+  let hex_opcode = HexByte::new(opcode);
+  let instruction = get_instruction(opcode);
+
+  // Format data addr
+  let data_addr = *cpu.get_addr_of_data();
+  let data_addr_struct = MemoryAddress::new(data_addr);
+  let data_hi = (data_addr & 0xFF00) >> 8;
+  let data_lo = data_addr & 0x00FF;
+  let data_lo_hex = HexByte::new(data_lo as u8);
+  let data_hi_hex = HexByte::new(data_hi as u8);
+
+  // Registers
+  let status_hex = HexByte::new(*cpu.get_status());
+  let acc_hex = HexByte::new(*cpu.get_acc());
+  let x_hex = HexByte::new(*cpu.get_x());
+  let y_hex = HexByte::new(*cpu.get_y());
+  let stack_ptr_hex = HexByte::new(*cpu.get_stkp());
+  
+  history.push(
+    Text::raw(
+      format!("{}  {} {} {}  {} ${}                       A:{} X:{} Y:{} P:{} SP:{} PPU:{},{} CYC:{}\n",
+        ppc,
+        hex_opcode,
+        data_lo_hex,
+        data_hi_hex,
+        instruction.get_operation(),
+        data_addr_struct,
+        acc_hex,
+        x_hex,
+        y_hex,
+        status_hex,
+        stack_ptr_hex,
+        "000",
+        "000",
+        current_clock_cycle
+      )
+    )
+  );
+}
+
+fn draw_instructions_panel<B>(f: &mut Frame<B>, area: Rect, cpu: &mut Cpu, history: &mut Vec<Text>, new_tick: bool)
 where
   B: Backend,
 {
-  let addr_hex = MemoryAddress::new(MEMORY_WINDOW_START_ADDRESS);
-  let memory_view_title = format!(" Program memory starting at 0x{} ", addr_hex);
+  // Populate the log
+  if new_tick {
+    log(cpu, history);
+  }
+
+  // Write to the screen
+  // let addr_hex = MemoryAddress::new(MEMORY_WINDOW_START_ADDRESS);
+  // let memory_view_title = format!(" Program memory starting at 0x{} ", addr_hex);
   let chunks = Layout::default()
     .direction(Direction::Vertical)
     .constraints(
@@ -154,15 +217,16 @@ where
     .split(area);
   draw_registers(f, chunks[0], cpu);
   draw_cpu_process_info(f, chunks[1], cpu);
-  draw_memory_page(
-    f,
-    chunks[2],
-    cpu,
-    MEMORY_WINDOW_START_ADDRESS,
-    48 * BYTES_PER_ROW,
-    &memory_view_title,
-    0x0200,
-  );
+  draw_history(f, chunks[2], history);
+  // draw_memory_page(
+  //   f,
+  //   chunks[2],
+  //   cpu,
+  //   MEMORY_WINDOW_START_ADDRESS,
+  //   48 * BYTES_PER_ROW,
+  //   &memory_view_title,
+  //   0x0200,
+  // );
 }
 
 fn draw_registers<B>(f: &mut Frame<B>, area: Rect, cpu: &Cpu)
@@ -240,7 +304,7 @@ where
   text.push(Text::raw(format!("0x{}", ppc)));
 
   text.push(Text::raw("\nExecuted opcode: "));
-  let opcode = *cpu.get_opcode();
+  let opcode = cpu.get_opcode_at(*cpu.get_ppc());
   let hex_opcode = HexByte::new(opcode);
   let instruction = get_instruction(opcode);
   let data_addr = *cpu.get_addr_of_data();
@@ -337,6 +401,21 @@ where
     " Interrupt Vectors ",
     *cpu.get_addr_of_data(),
   );
+}
+
+fn draw_history<B>(f: &mut Frame<B>, area: Rect, history: &mut Vec<Text>)
+where
+  B: Backend,
+{
+  Paragraph::new(history.iter().rev().take(42).rev())
+    .block(
+      Block::default()
+        .borders(Borders::ALL)
+        .title("OPERATION HISTORY")
+        .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD)),
+    )
+    .wrap(true)
+    .render(f, area);
 }
 
 fn draw_memory_page<B>(

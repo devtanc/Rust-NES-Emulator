@@ -434,6 +434,7 @@ mod php {
   use super::*;
   const OP: &Operation = &Operation::PHP;
   #[test]
+  // TODO: Do we need to worry about this: https://stackoverflow.com/questions/52017657/6502-emulator-testing-nestest
   fn pushes_status_register_onto_stack() {
     let mut cpu = Cpu::new();
     cpu.status = 0xAD;

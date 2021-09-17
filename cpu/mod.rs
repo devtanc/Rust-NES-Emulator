@@ -98,8 +98,8 @@ impl Cpu {
     &self.cycles
   }
 
-  pub fn get_opcode(&self) -> &u8 {
-    &self.opcode
+  pub fn get_opcode_at(&self, addr: u16) -> u8 {
+    self.read_addr(addr)
   }
 
   pub fn get_addr_of_data(&self) -> &u16 {
@@ -131,8 +131,9 @@ impl Cpu {
 
     self.addr_of_data = 0x0000;
 
-    self.cycles = 7;
+    self.cycles = 4;
   }
+  
   // Interrupt: request
   pub fn irq(&mut self) {
     if !self.get_flag('I') {
@@ -191,6 +192,7 @@ impl Cpu {
     }
   }
 
+  // Perform a single step by executing an instruction
   pub fn step(&mut self) {
     if self.is_cycle_complete() {
       self.clock()
