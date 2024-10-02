@@ -28,7 +28,7 @@ fn flag_from_char(flag: char) -> u8 {
 
 pub struct Cpu {
   bus: Bus, // Connected BUS
-  // 6502 registers
+  // 6502 simulation registers
   acc: u8,    // Accumulator
   x: u8,      // X Register
   y: u8,      // Y Register
